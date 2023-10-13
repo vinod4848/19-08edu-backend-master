@@ -1,0 +1,18 @@
+
+
+# Dependency directories
+node_modules/
+
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# package-json
+package-lock.json
+
+# dotenv environment variables file
+.env
+
+
+
