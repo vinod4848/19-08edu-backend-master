@@ -17,7 +17,6 @@ const upload = multer({ dest: "uploads/" });
 // const { upload } = require("../helper/upload")
 
 module.exports = function (app) {
-  
   //  ========================Authentication======================
   app.get(
     "/eduwizer/contact-messages",
@@ -93,9 +92,9 @@ module.exports = function (app) {
   app
     .route("/eduwizer/deleteUsers/:emailId")
     .delete(checkAuthorizationKey.checkToken, profileController.deleteUser);
-  // app.route("/eduwizer/uploadResume").post(
-  //     upload.single("resume"),profileController.uploadResume
-  // );
+  app
+    .route("/eduwizer/uploadResume")
+    .post(upload.single("resume"), profileController.uploadResume);
 
   app.route("/eduwizer/contact-us").post(
     // checkAuthorizationKey.checkToken,

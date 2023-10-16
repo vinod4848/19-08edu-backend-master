@@ -1,9 +1,5 @@
 const profileService = require("../services/profile.service");
-
 const AWS = require("aws-sdk");
-
-const mongoose = require("mongoose");
-
 const fs = require("fs");
 const sgMail = require("@sendgrid/mail");
 
@@ -168,80 +164,103 @@ const controllers = {
   // this.getProfile
 
   uploadResume: async function (req, res) {
-    const bucketName = process.env.AWS_BUCKET_NAME;
-
-    const region = "AP-SOUTH-1";
-    const accessKeyId = process.env.AWS_ACCESS_KEY;
-    const secretAccessKey = process.env.AWS_SECRET_KEY;
-
-    const s3 = new AWS.S3({
-      accessKeyId: accessKeyId,
-      secretAccessKey: secretAccessKey,
-      region: region,
-    });
-    if (req.file == null) {
-      return res.status(400).json({ message: "Please choose the file" });
-    }
-
-    var file = req.file;
-    // res.send(200);
-    // res.sendStatus(201);
-
-    const uploadImage = async (file) => {
-      return new Promise((resolve, reject) => {
-        const fileStream = fs.createReadStream(file.path);
-
-        const params = {
-          Bucket: bucketName,
-          Key: file.originalname,
-          Body: fileStream,
-        };
-
-        s3.upload(params, function (err, data) {
-          if (err) {
-            console.log("err :>> ", err);
-            reject(err);
-          }
-          console.log("data :>> ", data);
-          resolve(data.Location);
-        });
+    try {
+      const bucketName = process.env.AWS_BUCKET_NAME;
+      const region = 'ap-south-1';
+      const accessKeyId = process.env.AWS_ACCESS_KEY;
+      const secretAccessKey = process.env.AWS_SECRET_KEY;
+  
+      const s3 = new AWS.S3({
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
+        region: region,
       });
-    };
-    const url = await uploadImage(file);
-
-    if (req.body.admin) {
+  
+      // Check if the specified bucket exists and the user has access
+      const doesBucketExist = await s3.headBucket({ Bucket: bucketName }).promise();
+  
+      if (!doesBucketExist) {
+        console.error('The specified bucket does not exist or access is denied');
+        throw new Error('The specified bucket does not exist or access is denied');
+      }
+  
+      if (!req.file) {
+        return res.status(400).json({ message: 'Please choose the file' });
+      }
+  
+      const file = req.file;
+  
+      const uploadImage = (file) => {
+        return new Promise((resolve, reject) => {
+          const fileStream = fs.createReadStream(file.path);
+  
+          const uploadParams = {
+            Bucket: bucketName,
+            Key: file.originalname,
+            Body: fileStream,
+          };
+  
+          s3.upload(uploadParams, (err, data) => {
+            if (err) {
+              console.error('Error occurred during S3 upload: ', err);
+              reject(err);
+            } else {
+              console.log('Successfully uploaded to S3: ', data);
+              if (data && data.Location) {
+                resolve(data.Location);
+              } else {
+                reject(new Error('Invalid response from AWS S3 upload'));
+              }
+            }
+          });
+        });
+      };
+  
+      const url = await uploadImage(file);
+  
+      if (req.body.admin) {
+        const response = {
+          success: 1,
+          data: url,
+          message: 'Successfully Uploaded',
+        };
+        return res.status(200).json(response);
+      }
+  
+      await profileService.updateProfile({
+        userId: req.payload.userId,
+        resumeURL: url,
+      });
+  
+      const apiKey = sgMail.setApiKey(process.env.EMAIL_PROVIDER_AUTH_PASSWORD);
+  
+      const msg = {
+        to: process.env.SUPPORT_EMAIL,
+        from: process.env.EMAIL,
+        subject: 'Eduwizer New User Signup',
+        text: 'New user signup',
+        html: `New user has signed up. UserId: ${req.payload.userId}. His resume: ${url}`,
+      };
+  
+      await apiKey.send(msg);
+  
+      const response = {
+        success: 1,
+        data: url,
+        message: 'Successfully Uploaded',
+      };
+      return res.status(200).json(response);
+    } catch (error) {
+      console.error('An error occurred: ', error);
       const response = {
         success: 0,
-        data: url,
-        message: "Sucesfully Uploaded",
+        data: null,
+        message: error.message || 'Internal Server Error',
       };
-      return res.send(response);
+      return res.status(500).json(response);
     }
-
-    await profileService.updateProfile({
-      userId: req.payload.userId,
-      resumeURL: url,
-    });
-
-    const apiKey = sgMail.setApiKey(process.env.EMAIL_PROVIDER_AUTH_PASSWORD);
-
-    const msg = {
-      to: process.env.SUPPORT_EMAIL, // support Email
-      from: process.env.EMAIL, // Change to your verified sender
-      subject: "Eduwizer New User Signup",
-      text: `New user signup`,
-      html: `New user has signed up. UserId: ${req.payload.userId}. His resume: ${url}`,
-    };
-
-    await apiKey.send(msg);
-
-    const response = {
-      success: 0,
-      data: url,
-      message: "Sucesfully Uploaded",
-    };
-    return res.send(response);
   },
+   
   // uploadResume: async function (req, res) {
   //   res.send( req.file.location + '/index.html')
   // }
@@ -316,4 +335,3 @@ const controllers = {
 };
 
 module.exports = controllers;
-
