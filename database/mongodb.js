@@ -1,27 +1,22 @@
 const mongoose = require("mongoose");
 
-const { DATABASE_URL, DATABASE_NAME } = process.env;
-const connectionString = `${DATABASE_URL}/${DATABASE_NAME}`;
-
-const databaseOptions = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+const connectToMongoDB = async () => {
+  try {
+    const MONGODB_URI =
+      process.env.MONGODB_URI ||
+      "mongodb+srv://ngeduwizer:CQCn1FKdSiePzBdL@eduwizer.luvcjts.mongodb.net/eduwizer";
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("Database connection successful");
+  } catch (error) {
+    console.error("MongoDB Connection Error:", error);
+    setTimeout(connectToMongoDB, 5000);
+  }
 };
 
-mongoose.connect(connectionString, databaseOptions);
+connectToMongoDB();
 
-const db = mongoose.connection;
+module.exports = connectToMongoDB;
 
-db.on("error", (error) => {
-  console.error("Error in connecting database:", error);
-});
-
-db.once("open", () => {
-  console.log("Database successfully connected.");
-});
-
-db.on("disconnected", () => {
-  console.log("Database disconnected.");
-});
-
-module.exports = db;

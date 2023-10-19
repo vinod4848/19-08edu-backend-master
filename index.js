@@ -1,26 +1,19 @@
 require("dotenv").config();
 const express = require("express");
-const app = express();
 const bodyParser = require("body-parser");
-var cors = require("cors");
+const database = require("./database/mongodb");
+
+const cors = require("cors");
+
+const app = express();
 
 app.use(cors());
+app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
 
-app.use(
-  bodyParser.json({
-    limit: "50mb",
-  })
-);
-app.use(
-  bodyParser.urlencoded({
-    extended: true,
-    limit: "50mb",
-  })
-);
-
-//listening on port
-app.listen(process.env.port, function () {
-  console.log("user " + " api started on port: " + process.env.port);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`API started on port: ${PORT}`);
 });
 
 const routes = require("./routes/route");
